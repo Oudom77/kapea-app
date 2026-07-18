@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local only files.
+/lib/reference_app/
+/test/scan_service_test.dart
