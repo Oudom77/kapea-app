@@ -17,7 +17,7 @@ class MockScanService implements ScanService{
     final url = input.trim().toLowerCase();
     
 
-    if (url.startsWith(RegExp(r'/https?://'))){
+    if (url.startsWith(RegExp(r'https?://'))){
       return url;
     }
 
