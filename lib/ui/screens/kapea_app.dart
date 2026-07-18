@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import './home_screen.dart';
+import '../../services/scan_service.dart';
 
 class KapeaApp extends StatelessWidget {
   const KapeaApp({super.key});
@@ -56,7 +57,7 @@ class KapeaApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const HomeScreen(scanService: MockScanService(),),
     );
   }
 }

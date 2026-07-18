@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../services/scan_service.dart';
+import '../../models/scan_report.dart';
+import './result_screen.dart';
 
 class HomeScreen extends StatefulWidget{
 
-  const HomeScreen({super.key});
+  final ScanService scanService;
+
+  const HomeScreen({super.key, required this.scanService});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -11,6 +16,7 @@ class HomeScreen extends StatefulWidget{
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _urlController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isScanning = false;
 
   @override
   void dispose() {
@@ -18,11 +24,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _scanLink(){
+  void _scanLink() async {
 
     final isValid = _formKey.currentState?.validate() ?? false; // check if form has a valid state
 
-    if (!isValid){
+    if (!isValid || _isScanning){
       return;
     }
 
@@ -35,6 +41,48 @@ class _HomeScreenState extends State<HomeScreen> {
         )
       )
     );
+
+    setState(() {
+        _isScanning = true;
+    });
+
+    try {
+
+      final ScanReport report = await widget.scanService.scan(url);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isScanning = false;
+      });
+
+      await Navigator.push(
+        context, 
+        MaterialPageRoute(
+          builder: (context) => ResultScreen(report: report),
+        )
+      );
+
+    } catch (e){
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isScanning = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Scanning $url",
+          ),
+        ),
+      );
+    }
   }
 
   String? _validateUrl(String? value){
