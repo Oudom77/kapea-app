@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kapea_app/ui/utils/async_data.dart';
 import '../../services/scan_service.dart';
 import '../../models/scan_report.dart';
 import './result_screen.dart';
@@ -16,7 +17,9 @@ class HomeScreen extends StatefulWidget{
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _urlController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _isScanning = false;
+
+  AsyncData<ScanReport> scanState = AsyncData.notStarted();
+  
 
   @override
   void dispose() {
@@ -24,17 +27,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // checks if currently loading(scanning)
+  bool get _isScanning => scanState.status == AsyncStatus.loading;
+
+  // Scanning function
   void _scanLink() async {
 
     final isValid = _formKey.currentState?.validate() ?? false; // check if form has a valid state
 
-    if (!isValid || _isScanning){
+    if (!isValid || _isScanning){ // checks if no valid form and if currently scanning
       return;
     }
 
     final String url = _urlController.text.trim();
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar( // displays if scanning activated
       SnackBar(
         content: Text(
           "Scanning $url",
@@ -43,21 +50,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     setState(() {
-        _isScanning = true;
+        scanState = AsyncData.loading();
     });
 
     try {
 
-      final ScanReport report = await widget.scanService.scan(url);
+      final ScanReport report = await widget.scanService.scan(url); // fetches resulting scan
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _isScanning = false;
+        scanState = AsyncData.success(report);
       });
 
+      // pushes to result with the scan report
       await Navigator.push(
         context, 
         MaterialPageRoute(
@@ -72,19 +80,20 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       setState(() {
-        _isScanning = false;
+        scanState = AsyncData.error("$e");
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Scanning $url",
+            "Failed to scan $url",
           ),
         ),
       );
     }
   }
 
+  // URL validation function
   String? _validateUrl(String? value){
 
     final String text = value?.trim() ?? ""; // if value not null trim, else ""
