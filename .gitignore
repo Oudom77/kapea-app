@@ -47,3 +47,7 @@ app.*.map.json
 # Local only files.
 /lib/reference_app/
 /test/scan_service_test.dart
+
+# Backend secrets and generated output.
+/backend/.env
+/backend/coverage/
