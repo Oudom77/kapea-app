@@ -1,6 +1,11 @@
-# kapea_app
+# Kapea
 
-A new Flutter project.
+Kapea is a scan-first Flutter application for checking suspicious links before
+opening them. Its Node.js proxy keeps VirusTotal and urlscan.io API keys out of
+the mobile application.
+
+Backend setup and API documentation are in
+[`backend/README.md`](backend/README.md).
 
 ## Getting Started
 
