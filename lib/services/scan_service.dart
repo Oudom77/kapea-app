@@ -93,3 +93,17 @@ class MockScanService implements ScanService{
     
   }
 }
+
+// class BackendScanService implements ScanService{
+
+//   final String baseUrl;
+
+//   const BackendScanService({
+//     this.baseUrl = "http://127.0.0.1:8080",
+//   })
+
+//   @override
+//   Future<ScanReport> scan(String url) {
+//     return 
+//   }
+// }
