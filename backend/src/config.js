@@ -75,7 +75,7 @@ function readPositiveInteger(value, fallback, name) {
 }
 
 export function loadConfig(env = process.env) {
-  const mockMode = readBoolean(env.MOCK_MODE, true);
+  const mockMode = readBoolean(env.MOCK_MODE, false);
   const visibility = env.URLSCAN_VISIBILITY || 'unlisted';
 
   if (!['public', 'unlisted', 'private'].includes(visibility)) {
@@ -96,8 +96,10 @@ export function loadConfig(env = process.env) {
   }
 
   return Object.freeze({
-    host: env.HOST || '127.0.0.1',
-    port: readPositiveInteger(env.PORT, 8080, 'PORT'),
+    // host: env.HOST || '127.0.0.1',
+    // port: readPositiveInteger(env.PORT, 8080, 'PORT'),
+    host: process.env.HOST || "0.0.0.0",
+    port: Number(process.env.PORT) || 8080,
     allowedOrigin: env.ALLOWED_ORIGIN || '*',
     cacheTtlMs:
       readPositiveInteger(

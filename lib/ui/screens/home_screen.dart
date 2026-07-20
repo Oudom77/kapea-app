@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:kapea_app/ui/utils/async_data.dart';
 import '../../services/scan_service.dart';
 import '../../models/scan_report.dart';
-import './result_screen.dart';
+// import './result_screen.dart';
 import '../widgets/scan_form.dart';
 import '../widgets/scan_loading_view.dart';
+// import './result_test.dart';
+import 'testing.dart';
 
 class HomeScreen extends StatefulWidget{
 

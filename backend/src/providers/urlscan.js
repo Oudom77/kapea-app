@@ -56,11 +56,16 @@ export class UrlscanClient {
     while (true) {
       const result = await requestJson({
         fetchImpl: this.fetchImpl,
-        provider: 'urlscan.io',
+        provider: "urlscan.io",
         url: resultUrl,
         timeoutMs: this.providerTimeoutMs,
         signal,
         allowedStatuses: [404],
+        options: {
+          headers: {
+            "API-Key": this.apiKey,
+          },
+        },
       });
 
       if (result.response.status === 404) {
