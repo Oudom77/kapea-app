@@ -3,7 +3,7 @@ function count(stats, key) {
   return Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
 
-export function classifyRisk(stats, maliciousThreshold = 3) {
+export function classifyRisk(stats, maliciousThreshold = 10) {
   const malicious = count(stats, 'malicious');
   const suspicious = count(stats, 'suspicious');
   const enginesFlagged = malicious + suspicious;

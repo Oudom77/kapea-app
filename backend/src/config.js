@@ -124,7 +124,7 @@ export function loadConfig(env = process.env) {
     ),
     maliciousEngineThreshold: readPositiveInteger(
       env.MALICIOUS_ENGINE_THRESHOLD,
-      3,
+      10,
       'MALICIOUS_ENGINE_THRESHOLD',
     ),
     mockMode,
