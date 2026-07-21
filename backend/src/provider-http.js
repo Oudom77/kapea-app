@@ -22,6 +22,10 @@ function responseError(provider, response) {
   const retryAfterSeconds = parseRetryAfter(
     response.headers.get('retry-after'),
   );
+  const details = {
+    provider,
+    upstreamStatus: response.status,
+  };
 
   if (response.status === 429) {
     return new ProviderError({
@@ -29,6 +33,7 @@ function responseError(provider, response) {
       status: 429,
       code: 'RATE_LIMITED',
       message: `${provider} rate limit reached. Try again shortly.`,
+      details,
       retryAfterSeconds,
     });
   }
@@ -38,6 +43,7 @@ function responseError(provider, response) {
       provider,
       code: 'PROVIDER_AUTH_ERROR',
       message: `${provider} rejected the configured API key.`,
+      details,
     });
   }
 
@@ -45,6 +51,7 @@ function responseError(provider, response) {
     provider,
     code: 'PROVIDER_ERROR',
     message: `${provider} returned an unsuccessful response.`,
+    details,
   });
 }
 
@@ -97,6 +104,7 @@ export async function requestJson({
         status: 504,
         code: 'PROVIDER_TIMEOUT',
         message: `${provider} took too long to respond.`,
+        details: { provider },
         cause: error,
       });
     }
@@ -104,6 +112,7 @@ export async function requestJson({
     throw new ProviderError({
       provider,
       message: `${provider} could not be reached.`,
+      details: { provider },
       cause: error,
     });
   } finally {
@@ -122,6 +131,7 @@ export async function requestJson({
         provider,
         code: 'PROVIDER_INVALID_RESPONSE',
         message: `${provider} returned invalid JSON.`,
+        details: { provider, upstreamStatus: response.status },
         cause: error,
       });
     }

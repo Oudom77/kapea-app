@@ -1,6 +1,13 @@
+import { errorPayload } from './errors.js';
 import { classifyRisk } from './risk.js';
 import { mockScan } from './mock-scan.js';
 import { normalizePublicUrl } from './url-validation.js';
+
+const emptyEvidence = Object.freeze({
+  redirectChain: [],
+  screenshotUrl: null,
+  source: null,
+});
 
 export class ScanService {
   constructor({
@@ -10,6 +17,7 @@ export class ScanService {
     cache,
     maliciousEngineThreshold,
     scanTimeoutMs,
+    evidenceTimeoutMs = scanTimeoutMs,
     now = Date.now,
   }) {
     this.mockMode = mockMode;
@@ -18,15 +26,25 @@ export class ScanService {
     this.cache = cache;
     this.maliciousEngineThreshold = maliciousEngineThreshold;
     this.scanTimeoutMs = scanTimeoutMs;
+    this.evidenceTimeoutMs = evidenceTimeoutMs;
     this.now = now;
     this.inFlight = new Map();
   }
 
-  async scan(input) {
-    const url = normalizePublicUrl(input);
+  normalize(input) {
+    return normalizePublicUrl(input);
+  }
+
+  getCached(input) {
+    return this.cache.get(this.normalize(input));
+  }
+
+  async scan(input, { onProgress } = {}) {
+    const url = this.normalize(input);
     const cached = this.cache.get(url);
 
     if (cached !== undefined) {
+      onProgress?.(cached);
       return cached;
     }
 
@@ -35,7 +53,7 @@ export class ScanService {
       return existing;
     }
 
-    const pending = this.#performScan(url);
+    const pending = this.#performScan(url, onProgress);
     this.inFlight.set(url, pending);
 
     try {
@@ -47,52 +65,87 @@ export class ScanService {
     }
   }
 
-  async #performScan(url) {
+  async #performScan(url, onProgress) {
     if (this.mockMode) {
-      const mockResult = await mockScan(url);
-      return this.#buildReport(url, mockResult);
+      const result = await mockScan(url);
+      return this.#buildReport({
+        url,
+        verdict: { ...result, source: 'mock', analyzedAt: null },
+        evidence: result,
+        evidenceStatus: 'complete',
+        warnings: [],
+      });
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, this.scanTimeoutMs);
+    const verdictDeadline = createDeadline(this.scanTimeoutMs);
+    const evidenceDeadline = createDeadline(this.evidenceTimeoutMs);
+    const evidencePending = settle(
+      this.urlscanClient.scan(url, {
+        signal: evidenceDeadline.controller.signal,
+      }),
+    );
 
     try {
-      const [virusTotalResult, urlscanResult] = await Promise.allSettled([
-        this.virusTotalClient.scan(url, { signal: controller.signal }),
-        this.urlscanClient.scan(url, { signal: controller.signal }),
-      ]);
+      const verdict = await this.virusTotalClient.scan(url, {
+        signal: verdictDeadline.controller.signal,
+      });
+      verdictDeadline.stop();
 
-      if (virusTotalResult.status === 'rejected') {
-        throw virusTotalResult.reason;
+      const scannedAt = new Date(this.now()).toISOString();
+      const partialReport = this.#buildReport({
+        url,
+        verdict,
+        evidence: emptyEvidence,
+        evidenceStatus: 'pending',
+        warnings: [],
+        scannedAt,
+      });
+      onProgress?.(partialReport);
+
+      const evidenceResult = await evidencePending;
+      if (evidenceResult.status === 'fulfilled') {
+        return this.#buildReport({
+          url,
+          verdict,
+          evidence: evidenceResult.value,
+          evidenceStatus: 'complete',
+          warnings: [],
+          scannedAt,
+        });
       }
 
-      const evidence =
-        urlscanResult.status === 'fulfilled'
-          ? urlscanResult.value
-          : {
-              redirectChain: [],
-              screenshotUrl: null,
-            };
-
-      return this.#buildReport(url, {
-        stats: virusTotalResult.value.stats,
-        ...evidence,
+      return this.#buildReport({
+        url,
+        verdict,
+        evidence: emptyEvidence,
+        evidenceStatus: 'unavailable',
+        warnings: [toWarning(evidenceResult.reason)],
+        scannedAt,
       });
+    } catch (error) {
+      evidenceDeadline.controller.abort();
+      await evidencePending;
+      throw error;
     } finally {
-      clearTimeout(timeout);
+      verdictDeadline.stop();
+      evidenceDeadline.stop();
     }
   }
 
-  #buildReport(url, providerResult) {
+  #buildReport({
+    url,
+    verdict,
+    evidence,
+    evidenceStatus,
+    warnings,
+    scannedAt = new Date(this.now()).toISOString(),
+  }) {
     const risk = classifyRisk(
-      providerResult.stats,
+      verdict.stats,
       this.maliciousEngineThreshold,
     );
-
-    const redirectChain = Array.isArray(providerResult.redirectChain)
-      ? providerResult.redirectChain
+    const redirectChain = Array.isArray(evidence.redirectChain)
+      ? evidence.redirectChain
       : [];
 
     if (redirectChain.length > 0) {
@@ -104,15 +157,45 @@ export class ScanService {
     return {
       url,
       tier: risk.tier,
-      scannedAt: new Date(this.now()).toISOString(),
+      scannedAt,
       redirectChain,
       reasons: risk.reasons,
       enginesFlagged: risk.enginesFlagged,
       totalEngines: risk.totalEngines,
       screenshotUrl:
-        typeof providerResult.screenshotUrl === 'string'
-          ? providerResult.screenshotUrl
+        typeof evidence.screenshotUrl === 'string'
+          ? evidence.screenshotUrl
           : null,
+      evidenceStatus,
+      verdictAnalyzedAt: verdict.analyzedAt || null,
+      sources: {
+        verdict: verdict.source || null,
+        evidence: evidence.source || null,
+      },
+      warnings,
     };
   }
+}
+
+function settle(promise) {
+  return promise.then(
+    (value) => ({ status: 'fulfilled', value }),
+    (reason) => ({ status: 'rejected', reason }),
+  );
+}
+
+function createDeadline(milliseconds) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), milliseconds);
+
+  return {
+    controller,
+    stop() {
+      clearTimeout(timeout);
+    },
+  };
+}
+
+function toWarning(error) {
+  return errorPayload(error).payload.error;
 }

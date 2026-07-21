@@ -9,14 +9,71 @@ export class VirusTotalClient {
     fetchImpl = globalThis.fetch,
     providerTimeoutMs,
     pollIntervalMs,
+    reportMaxAgeMs,
+    now = Date.now,
   }) {
     this.apiKey = apiKey;
     this.fetchImpl = fetchImpl;
     this.providerTimeoutMs = providerTimeoutMs;
     this.pollIntervalMs = pollIntervalMs;
+    this.reportMaxAgeMs = reportMaxAgeMs;
+    this.now = now;
   }
 
   async scan(url, { signal } = {}) {
+    const existing = await this.#getExistingReport(url, signal);
+    if (existing) {
+      return existing;
+    }
+
+    return this.#submitAndWait(url, signal);
+  }
+
+  async #getExistingReport(url, signal) {
+    const urlId = Buffer.from(url, 'utf8').toString('base64url');
+    const result = await requestJson({
+      fetchImpl: this.fetchImpl,
+      provider: 'VirusTotal',
+      url: new URL(`urls/${urlId}`, apiBaseUrl),
+      timeoutMs: this.providerTimeoutMs,
+      signal,
+      allowedStatuses: [404],
+      options: {
+        headers: {
+          'x-apikey': this.apiKey,
+        },
+      },
+    });
+
+    if (result.response.status === 404) {
+      return null;
+    }
+
+    const attributes = result.data?.data?.attributes;
+    const analyzedAtSeconds = attributes?.last_analysis_date;
+    const stats = attributes?.last_analysis_stats;
+
+    if (
+      !Number.isSafeInteger(analyzedAtSeconds) ||
+      !stats ||
+      typeof stats !== 'object'
+    ) {
+      return null;
+    }
+
+    const analyzedAtMs = analyzedAtSeconds * 1000;
+    if (this.now() - analyzedAtMs > this.reportMaxAgeMs) {
+      return null;
+    }
+
+    return {
+      stats,
+      source: 'existing',
+      analyzedAt: new Date(analyzedAtMs).toISOString(),
+    };
+  }
+
+  async #submitAndWait(url, signal) {
     const body = new URLSearchParams({ url });
     const submission = await requestJson({
       fetchImpl: this.fetchImpl,
@@ -70,6 +127,8 @@ export class VirusTotalClient {
 
         return {
           stats: attributes.stats,
+          source: 'fresh',
+          analyzedAt: new Date(this.now()).toISOString(),
         };
       }
 

@@ -57,7 +57,7 @@ class KapeaApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(scanService: BackendScanService(),),
+      home: const HomeScreen(scanService: BackendScanService(baseUrl: 'http://127.0.0.1:8080'),),
     );
   }
 }
