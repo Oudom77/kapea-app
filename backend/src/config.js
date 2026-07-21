@@ -96,10 +96,8 @@ export function loadConfig(env = process.env) {
   }
 
   return Object.freeze({
-    // host: env.HOST || '127.0.0.1',
-    // port: readPositiveInteger(env.PORT, 8080, 'PORT'),
-    host: process.env.HOST || "0.0.0.0",
-    port: Number(process.env.PORT) || 8080,
+    host: env.HOST || '0.0.0.0',
+    port: readPositiveInteger(env.PORT, 8080, 'PORT'),
     allowedOrigin: env.ALLOWED_ORIGIN || '*',
     cacheTtlMs:
       readPositiveInteger(
@@ -117,6 +115,11 @@ export function loadConfig(env = process.env) {
       60000,
       'SCAN_TIMEOUT_MS',
     ),
+    evidenceTimeoutMs: readPositiveInteger(
+      env.EVIDENCE_TIMEOUT_MS,
+      90000,
+      'EVIDENCE_TIMEOUT_MS',
+    ),
     pollIntervalMs: readPositiveInteger(
       env.POLL_INTERVAL_MS,
       2500,
@@ -126,6 +129,29 @@ export function loadConfig(env = process.env) {
       env.MALICIOUS_ENGINE_THRESHOLD,
       10,
       'MALICIOUS_ENGINE_THRESHOLD',
+    ),
+    virusTotalReportMaxAgeMs:
+      readPositiveInteger(
+        env.VT_REPORT_MAX_AGE_SECONDS,
+        86400,
+        'VT_REPORT_MAX_AGE_SECONDS',
+      ) * 1000,
+    urlscanReportMaxAgeMs:
+      readPositiveInteger(
+        env.URLSCAN_REPORT_MAX_AGE_SECONDS,
+        86400,
+        'URLSCAN_REPORT_MAX_AGE_SECONDS',
+      ) * 1000,
+    jobTtlMs:
+      readPositiveInteger(
+        env.JOB_TTL_SECONDS,
+        86400,
+        'JOB_TTL_SECONDS',
+      ) * 1000,
+    scanRequestsPerMinute: readPositiveInteger(
+      env.SCAN_REQUESTS_PER_MINUTE,
+      20,
+      'SCAN_REQUESTS_PER_MINUTE',
     ),
     mockMode,
     virusTotalApiKey: env.VIRUSTOTAL_API_KEY || '',

@@ -22,6 +22,7 @@ export class ProviderError extends AppError {
     status = 502,
     code = 'PROVIDER_ERROR',
     message,
+    details,
     retryAfterSeconds,
     cause,
   }) {
@@ -29,6 +30,7 @@ export class ProviderError extends AppError {
       status,
       code,
       message: message || `${provider} could not complete the scan.`,
+      details,
       retryAfterSeconds,
       cause,
     });

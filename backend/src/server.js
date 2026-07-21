@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { createRequestHandler } from './app.js';
 import { loadConfig, loadEnvFile } from './config.js';
 import { ScanService } from './scan-service.js';
+import { ScanJobService } from './scan-job-service.js';
 import { TtlCache } from './ttl-cache.js';
 import { UrlscanClient } from './providers/urlscan.js';
 import { VirusTotalClient } from './providers/virustotal.js';
+import { FixedWindowRateLimiter } from './rate-limiter.js';
 
 const envPath = fileURLToPath(new URL('../.env', import.meta.url));
 loadEnvFile(envPath);
@@ -20,6 +22,7 @@ const virusTotalClient = config.mockMode
       apiKey: config.virusTotalApiKey,
       providerTimeoutMs: config.providerTimeoutMs,
       pollIntervalMs: config.pollIntervalMs,
+      reportMaxAgeMs: config.virusTotalReportMaxAgeMs,
     });
 
 const urlscanClient = config.mockMode
@@ -29,6 +32,7 @@ const urlscanClient = config.mockMode
       visibility: config.urlscanVisibility,
       providerTimeoutMs: config.providerTimeoutMs,
       pollIntervalMs: config.pollIntervalMs,
+      reportMaxAgeMs: config.urlscanReportMaxAgeMs,
     });
 
 const scanService = new ScanService({
@@ -38,11 +42,22 @@ const scanService = new ScanService({
   cache,
   maliciousEngineThreshold: config.maliciousEngineThreshold,
   scanTimeoutMs: config.scanTimeoutMs,
+  evidenceTimeoutMs: config.evidenceTimeoutMs,
+});
+
+const scanJobService = new ScanJobService({
+  scanService,
+  ttlMs: config.jobTtlMs,
+});
+const scanRateLimiter = new FixedWindowRateLimiter({
+  limit: config.scanRequestsPerMinute,
+  windowMs: 60000,
 });
 
 const server = createServer(
   createRequestHandler({
-    scanService,
+    scanJobService,
+    scanRateLimiter,
     mode: config.mockMode ? 'mock' : 'live',
     allowedOrigin: config.allowedOrigin,
   }),

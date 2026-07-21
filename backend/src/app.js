@@ -3,7 +3,8 @@ import { AppError, errorPayload } from './errors.js';
 const maxBodyBytes = 16 * 1024;
 
 export function createRequestHandler({
-  scanService,
+  scanJobService,
+  scanRateLimiter,
   mode,
   allowedOrigin = '*',
   logger = console,
@@ -35,9 +36,26 @@ export function createRequestHandler({
 
       if (url.pathname === '/api/v1/scans') {
         assertMethod(request, 'POST');
+        enforceScanRateLimit(request, scanRateLimiter);
         const body = await readJsonBody(request);
-        const report = await scanService.scan(body.url);
-        sendJson(response, 200, { data: report });
+        const result = scanJobService.create(body.url);
+        const status = result.job.status === 'complete' ? 200 : 202;
+        sendJob(response, status, result.job);
+        return;
+      }
+
+      const scanId = scanIdFromPath(url.pathname);
+      if (scanId !== null) {
+        assertMethod(request, 'GET');
+        const job = scanJobService.get(scanId);
+        if (!job) {
+          throw new AppError({
+            status: 404,
+            code: 'SCAN_NOT_FOUND',
+            message: 'The scan job was not found or has expired.',
+          });
+        }
+        sendJob(response, 200, job);
         return;
       }
 
@@ -71,6 +89,10 @@ function setCommonHeaders(response, allowedOrigin) {
   response.setHeader(
     'access-control-allow-headers',
     'content-type',
+  );
+  response.setHeader(
+    'access-control-expose-headers',
+    'location, retry-after',
   );
   response.setHeader('cache-control', 'no-store');
   response.setHeader('x-content-type-options', 'nosniff');
@@ -145,11 +167,63 @@ function payloadTooLarge() {
   });
 }
 
-function sendJson(response, status, payload) {
+function scanIdFromPath(pathname) {
+  const match = pathname.match(/^\/api\/v1\/scans\/([^/]+)$/);
+  if (!match) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    throw new AppError({
+      status: 400,
+      code: 'INVALID_SCAN_ID',
+      message: 'The scan ID is invalid.',
+    });
+  }
+}
+
+function enforceScanRateLimit(request, limiter) {
+  if (!limiter) {
+    return;
+  }
+
+  const forwardedFor = request.headers['x-forwarded-for'];
+  const clientAddress =
+    (typeof forwardedFor === 'string'
+      ? forwardedFor.split(',')[0].trim()
+      : null) || request.socket.remoteAddress || 'unknown';
+  const result = limiter.consume(clientAddress);
+
+  if (!result.allowed) {
+    throw new AppError({
+      status: 429,
+      code: 'RATE_LIMITED',
+      message: 'Too many scan requests. Try again shortly.',
+      retryAfterSeconds: result.retryAfterSeconds,
+    });
+  }
+}
+
+function sendJob(response, status, job) {
+  const headers = {
+    location: `/api/v1/scans/${encodeURIComponent(job.id)}`,
+  };
+
+  if (!['complete', 'failed'].includes(job.status)) {
+    headers['retry-after'] = '2';
+  }
+
+  sendJson(response, status, { data: job }, headers);
+}
+
+function sendJson(response, status, payload, headers = {}) {
   const body = JSON.stringify(payload);
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(body),
+    ...headers,
   });
   response.end(body);
 }
