@@ -23,7 +23,8 @@ extension RiskTierX on RiskTier {
 
 class ScanReportView extends StatefulWidget {
   final ScanReport report;
-  const ScanReportView({super.key, required this.report});
+  final bool isLive;
+  const ScanReportView({super.key, required this.report, this.isLive = false});
 
   @override
   State<ScanReportView> createState() => _ScanReportViewState();
@@ -66,6 +67,10 @@ class _ScanReportViewState extends State<ScanReportView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.isLive) ...[
+                _buildLiveBanner(),
+                const SizedBox(height: 16,),
+              ],
               _buildStatusBanner(report),
               const SizedBox(height: 16),
               _buildScreenshotPreview(report),
@@ -97,6 +102,41 @@ class _ScanReportViewState extends State<ScanReportView> {
       ),
     );
   }
+
+  Widget _buildLiveBanner() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF0F7F5),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _kTeal.withValues(alpha: 0.24)),
+    ),
+    child: const Row(
+      children: [
+        SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: _kTeal,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Scan still running. Showing early verdict while screenshot and redirects are checked.',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildStatusBanner(ScanReport report) {
     return Container(
@@ -194,6 +234,31 @@ class _ScanReportViewState extends State<ScanReportView> {
                     );
                   },
                 )
+              else if (widget.isLive)
+                const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Capturing screenshot...',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
               else
                 const Center(
                   child: Icon(
@@ -202,31 +267,33 @@ class _ScanReportViewState extends State<ScanReportView> {
                     size: 36,
                   ),
                 ),
-              Positioned(
-                right: 10,
-                bottom: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.zoom_in, color: Colors.white, size: 14),
-                      SizedBox(width: 4),
-                      Text(
-                        'Tap to zoom',
-                        style: TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ],
+
+              if (hasScreenshot)
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'Tap to zoom',
+                          style: TextStyle(color: Colors.white, fontSize: 11),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

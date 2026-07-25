@@ -133,16 +133,9 @@ class _LiveResultScreenState extends State<LiveResultScreen>{
 
       if (job.report != null) {
 
-        return Column(
-          children: [
-            if (job.status != ScanJobStatus.complete)
-              Text("Still scanning..."),
-            
-            Expanded(
-              child: ScanReportView(report: job.report!),
-            )
-            
-          ],
+        return ScanReportView(
+          report: job.report!, 
+          isLive: (job.status != ScanJobStatus.complete),
         );
         
       }
