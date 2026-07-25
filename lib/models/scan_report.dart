@@ -1,4 +1,32 @@
-enum RiskTier { safe, suspicious, malicious }
+import 'package:flutter/material.dart';
+import '../ui/themes/kapea_theme.dart';
+enum RiskTier {
+  malicious(
+    label: 'Malicious',
+    color: kMaliciousColor,
+    icon: Icons.error,
+  ),
+  suspicious(
+    label: 'Suspicious',
+    color: kSuspiciousColor,
+    icon: Icons.error,
+  ),
+  safe(
+    label: 'No threats found',
+    color: kSafeColor,
+    icon: Icons.check_circle,
+  );
+
+  const RiskTier({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+}
 
 class ScanReport {
 
