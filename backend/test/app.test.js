@@ -71,6 +71,62 @@ test('POST /api/v1/scans creates an asynchronous scan job', async () => {
   );
 });
 
+test('POST /api/v1/scans forwards force rescans', async () => {
+  const job = {
+    id: 'forced-id',
+    url: 'https://example.com/',
+    status: 'scanning',
+    report: null,
+    error: null,
+    force: true,
+  };
+
+  await withServer(
+    {
+      create(url, options) {
+        assert.equal(url, 'example.com');
+        assert.deepEqual(options, { force: true });
+        return { job, created: true };
+      },
+    },
+    async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/v1/scans`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ url: 'example.com', force: true }),
+      });
+
+      assert.equal(response.status, 202);
+      assert.deepEqual(await response.json(), { data: job });
+    },
+  );
+});
+
+test('POST /api/v1/scans rejects non-boolean force', async () => {
+  await withServer(
+    {
+      create() {
+        assert.fail('invalid force must not create jobs');
+      },
+    },
+    async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/v1/scans`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ url: 'example.com', force: 'true' }),
+      });
+      const body = await response.json();
+
+      assert.equal(response.status, 400);
+      assert.equal(body.error.code, 'INVALID_FORCE');
+    },
+  );
+});
+
 test('POST returns a completed cached job immediately', async () => {
   const job = {
     id: 'cached-id',

@@ -55,9 +55,9 @@ class BackendScanService implements ScanService {
     throw StateError("The scan stream closed without a final result.");
   }
 
-  Stream<ScanJob> watchScan(String url) async* {
+  Stream<ScanJob> watchScan(String url, {bool force = false}) async* {
 
-    ScanJob job = await _createScanJob(url); // create job if cached result available use that
+    ScanJob job = await _createScanJob(url, force: force); // create job if cached result available use that
     final DateTime deadline = DateTime.now().add(scanTimeout);
 
     yield job; // initial yield for cached result
@@ -78,12 +78,13 @@ class BackendScanService implements ScanService {
     }
   }
 
-  Future<ScanJob> _createScanJob(String url) async {
+  Future<ScanJob> _createScanJob(String url, {bool force = false}) async {
 
     final Uri endpoint = Uri.parse(baseUrl).replace(path: "/api/v1/scans");
 
     final String requestBody = jsonEncode({
       "url": url,
+      if (force) "force" : true,
     });
 
     final http.Response response = await http.post(

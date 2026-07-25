@@ -8,6 +8,7 @@ import '../widgets/scan_loading_view.dart';
 
 // Models
 import '../../models/scan_job.dart';
+import '../../models/scan_report.dart';
 
 // Services
 import '../../services/scan_service.dart';
@@ -38,9 +39,36 @@ class _LiveResultScreenState extends State<LiveResultScreen> {
     _watchScan();
   }
 
-  void _watchScan() async {
+  Future<void> _deleteReport() async {
+
+    final ScanJob? job = scanState.value;
+    final ScanReport? report = job?.report;
+
+    if (job?.status != ScanJobStatus.complete || report == null){
+      return;
+    }
+
+    await widget.storage.remove(report.url);
+
+    if (!mounted){
+      return;
+    }
+
+    Navigator.pop(context);
+  }
+
+  Future<void> _rescan() async {
+
+    setState(() {
+      scanState = AsyncData.loading();
+    });
+
+    await _watchScan(force: true);
+  }
+
+  Future<void> _watchScan({bool force = false}) async {
     try {
-      await for (final job in widget.scanService.watchScan(widget.url)) {
+      await for (final job in widget.scanService.watchScan(widget.url, force: force)) {
         if (!mounted) {
           return;
         }
@@ -131,6 +159,8 @@ class _LiveResultScreenState extends State<LiveResultScreen> {
           return ScanReportView(
             report: job.report!,
             isLive: (job.status != ScanJobStatus.complete),
+            onRescan: job.status == ScanJobStatus.complete ? _rescan : null,
+            onDelete: job.status == ScanJobStatus.complete ? _deleteReport : null,
           );
         }
 

@@ -39,16 +39,16 @@ export class ScanService {
     return this.cache.get(this.normalize(input));
   }
 
-  async scan(input, { onProgress } = {}) {
+  async scan(input, { onProgress, force = false } = {}) {
     const url = this.normalize(input);
-    const cached = this.cache.get(url);
+    const cached = force ? undefined : this.cache.get(url);
 
     if (cached !== undefined) {
       onProgress?.(cached);
       return cached;
     }
 
-    const existing = this.inFlight.get(url);
+    const existing = force ? undefined : this.inFlight.get(url);
     if (existing) {
       return existing;
     }

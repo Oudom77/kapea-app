@@ -102,6 +102,35 @@ test('returns cached reports as immediately complete jobs', () => {
   assert.deepEqual(result.job.report, cached);
 });
 
+test('force creates a fresh job instead of returning cached reports', async () => {
+  const cached = { tier: 'safe', evidenceStatus: 'complete' };
+  const fresh = { tier: 'suspicious', evidenceStatus: 'complete' };
+  let scanCalls = 0;
+  const service = createJobService({
+    getCached: () => cached,
+    async scan(url, { force }) {
+      assert.equal(url, normalizedUrl);
+      assert.equal(force, true);
+      scanCalls += 1;
+      return fresh;
+    },
+  });
+
+  const result = service.create('example.com', { force: true });
+
+  assert.equal(result.job.status, 'scanning');
+  assert.equal(result.job.cacheHit, false);
+  assert.equal(result.job.force, true);
+
+  const completed = await waitForStatus(
+    service,
+    result.job.id,
+    'complete',
+  );
+  assert.equal(scanCalls, 1);
+  assert.deepEqual(completed.report, fresh);
+});
+
 test('stores structured errors on failed jobs', async () => {
   const service = createJobService({
     async scan() {
