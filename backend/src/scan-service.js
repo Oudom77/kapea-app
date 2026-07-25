@@ -53,7 +53,7 @@ export class ScanService {
       return existing;
     }
 
-    const pending = this.#performScan(url, onProgress);
+    const pending = this.#performScan(url, onProgress, force);
     this.inFlight.set(url, pending);
 
     try {
@@ -65,7 +65,7 @@ export class ScanService {
     }
   }
 
-  async #performScan(url, onProgress) {
+  async #performScan(url, onProgress, force) {
     if (this.mockMode) {
       const result = await mockScan(url);
       return this.#buildReport({
@@ -81,12 +81,14 @@ export class ScanService {
     const evidenceDeadline = createDeadline(this.evidenceTimeoutMs);
     const evidencePending = settle(
       this.urlscanClient.scan(url, {
+        force,
         signal: evidenceDeadline.controller.signal,
       }),
     );
 
     try {
       const verdict = await this.virusTotalClient.scan(url, {
+        force,
         signal: verdictDeadline.controller.signal,
       });
       verdictDeadline.stop();

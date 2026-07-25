@@ -24,8 +24,8 @@ export class UrlscanClient {
     this.now = now;
   }
 
-  async scan(url, { signal } = {}) {
-    const existing = await this.#findExisting(url, signal);
+  async scan(url, { signal, force = false } = {}) {
+    const existing = force ? null : await this.#findExisting(url, signal);
     if (existing) {
       return existing;
     }
