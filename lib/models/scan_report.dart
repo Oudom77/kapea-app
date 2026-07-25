@@ -12,6 +12,8 @@ class ScanReport {
   final int enginesFlagged;
   final int totalEngines;
   final String? screenshotUrl;
+  final String? evidenceStatus;
+  final List<String> warnings;
 
   const ScanReport({
     required this.url,
@@ -21,6 +23,8 @@ class ScanReport {
     required this.reasons,
     required this.enginesFlagged,
     this.totalEngines = 72,
-    this.screenshotUrl,
+    this.screenshotUrl, 
+    this.evidenceStatus, 
+    this.warnings = const [],
   });
 }

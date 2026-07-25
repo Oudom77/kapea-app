@@ -35,6 +35,9 @@ class ScanReportDto {
     final int totalEngines = json['totalEngines'] as int;
     final String? screenshotUrl = json['screenshotUrl'] as String?;
 
+    final String? evidenceStatus = json["evidenceStatus"] as String?;
+    final List<String> warning = json["warning"] is List<String> ? List<String>.from(json["warning"] as List) : [];
+
 
     return ScanReport(
       url: url,
@@ -45,6 +48,8 @@ class ScanReportDto {
       enginesFlagged: enginesFlagged,
       totalEngines: totalEngines,
       screenshotUrl: screenshotUrl,
+      evidenceStatus: evidenceStatus,
+      warnings: warning,
     );
   }
 }

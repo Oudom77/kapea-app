@@ -28,26 +28,13 @@ class BackendScanService implements ScanService {
   @override
   Future<ScanReport> scan(String url) async {
 
-    ScanJob job = await _createScanJob(url);
+    await for (final ScanJob job in watchScan(url)){
 
-    final DateTime deadline = DateTime.now().add(scanTimeout);
-
-    while (true) {
       switch (job.status){
       
         case ScanJobStatus.scanning:
         case ScanJobStatus.partial:
-
-          if (DateTime.now().isAfter(deadline)) {
-            throw TimeoutException(
-              'Scan timed out after ${scanTimeout.inSeconds} seconds.',
-            );
-          }
-
-          await Future<void>.delayed(pollInterval);
-          job = await _getScanJob(job.id);
-          print('Updated job: ${job.status.name}');
-
+          continue;
         case ScanJobStatus.complete:
       
           final ScanReport? report = job.report;
@@ -63,6 +50,31 @@ class BackendScanService implements ScanService {
             job.errorMessage ?? "The scan failed for an unknown reason!!"
           );
       }
+    }
+
+    throw StateError("The scan stream closed without a final result.");
+  }
+
+  Stream<ScanJob> watchScan(String url) async* {
+
+    ScanJob job = await _createScanJob(url); // create job if cached result available use that
+    final DateTime deadline = DateTime.now().add(scanTimeout);
+
+    yield job; // initial yield for cached result
+
+    while (!job.isFinished){
+
+      if (DateTime.now().isAfter(deadline)) {
+        throw TimeoutException(
+          'Scan timed out after ${scanTimeout.inSeconds} seconds.',
+        );
+      }
+
+      await Future<void>.delayed(pollInterval);
+
+      job = await _getScanJob(job.id);
+
+      yield job; // returns a yield every interval until job is finished
     }
   }
 
