@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:kapea_app/ui/screens/live_result_screen.dart';
 import 'package:kapea_app/ui/utils/async_data.dart';
 import '../../services/scan_service.dart';
-import '../../models/scan_report.dart';
-import './result_screen.dart';
 import '../widgets/scan_form.dart';
 import '../widgets/scan_loading_view.dart';
 
@@ -18,7 +17,7 @@ class HomeScreen extends StatefulWidget{
 
 class _HomeScreenState extends State<HomeScreen> {
   
-  AsyncData<ScanReport> scanState = AsyncData.notStarted();
+  AsyncData<void> scanState = AsyncData.notStarted();
 
   // checks if currently loading(scanning)
   bool get _isScanning => scanState.status == AsyncStatus.loading;
@@ -44,19 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
 
-      final ScanReport report = await widget.scanService.scan(url); // fetches resulting scan
+      await resultScreen(url);
 
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        scanState = AsyncData.success(report);
-      });
-
-      await resultScreen(report);
-
-      // Restart state after exiting result screen
       if (!mounted) {
         return;
       }
@@ -64,7 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         scanState = AsyncData.notStarted();
       });
-
 
     } catch (e){
 
@@ -86,13 +73,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> resultScreen(ScanReport report) async {
+  Future<void> resultScreen(String url) async {
 
     // pushes to result with the scan report
     await Navigator.push(
       context, 
       MaterialPageRoute(
-        builder: (context) => ResultScreen(report: report),
+        builder: (context) => LiveResultScreen(url: url, scanService: widget.scanService),
       )
     );
 

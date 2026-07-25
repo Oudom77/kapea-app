@@ -22,4 +22,8 @@ class ScanJob {
     required this.report,
     required this.errorMessage,
   });
+
+  bool get isFinished => 
+    status == ScanJobStatus.complete || 
+    status == ScanJobStatus.failed;
 }
