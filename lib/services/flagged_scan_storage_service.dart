@@ -10,7 +10,11 @@ class FlaggedScanStorage {
   final FlutterSecureStorage _storage;
 
   const FlaggedScanStorage({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ?? const FlutterSecureStorage(
+        aOptions: AndroidOptions(
+          encryptedSharedPreferences: true,
+        )
+      );
 
   Future<List<ScanReport>> getAll() async {
     final String? raw = await _storage.read(key: _storageKey);
