@@ -90,6 +90,51 @@ test('deduplicates concurrent scans and caches the report', async () => {
   assert.equal(virusTotalCalls, 1);
 });
 
+test('force bypasses cached reports', async () => {
+  let virusTotalCalls = 0;
+  let urlscanCalls = 0;
+  const virusTotalForceValues = [];
+  const urlscanForceValues = [];
+  const service = createService({
+    virusTotalClient: {
+      async scan(url, { force }) {
+        virusTotalForceValues.push(force);
+        virusTotalCalls += 1;
+        return {
+          stats: {
+            harmless: 72,
+            malicious: 0,
+            suspicious: 0,
+            undetected: 0,
+          },
+          source: 'fresh',
+          analyzedAt: '2026-07-19T05:00:00.000Z',
+        };
+      },
+    },
+    urlscanClient: {
+      async scan(url, { force }) {
+        urlscanForceValues.push(force);
+        urlscanCalls += 1;
+        return {
+          redirectChain: [],
+          screenshotUrl: 'https://urlscan.io/screenshots/fresh.png',
+          source: 'fresh',
+        };
+      },
+    },
+  });
+
+  await service.scan('example.com');
+  await service.scan('example.com');
+  await service.scan('example.com', { force: true });
+
+  assert.equal(virusTotalCalls, 2);
+  assert.equal(urlscanCalls, 2);
+  assert.deepEqual(virusTotalForceValues, [false, true]);
+  assert.deepEqual(urlscanForceValues, [false, true]);
+});
+
 test('returns a verdict when urlscan evidence is unavailable', async () => {
   const service = createService({
     urlscanClient: {

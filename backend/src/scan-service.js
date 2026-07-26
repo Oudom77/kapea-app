@@ -39,21 +39,21 @@ export class ScanService {
     return this.cache.get(this.normalize(input));
   }
 
-  async scan(input, { onProgress } = {}) {
+  async scan(input, { onProgress, force = false } = {}) {
     const url = this.normalize(input);
-    const cached = this.cache.get(url);
+    const cached = force ? undefined : this.cache.get(url);
 
     if (cached !== undefined) {
       onProgress?.(cached);
       return cached;
     }
 
-    const existing = this.inFlight.get(url);
+    const existing = force ? undefined : this.inFlight.get(url);
     if (existing) {
       return existing;
     }
 
-    const pending = this.#performScan(url, onProgress);
+    const pending = this.#performScan(url, onProgress, force);
     this.inFlight.set(url, pending);
 
     try {
@@ -65,7 +65,7 @@ export class ScanService {
     }
   }
 
-  async #performScan(url, onProgress) {
+  async #performScan(url, onProgress, force) {
     if (this.mockMode) {
       const result = await mockScan(url);
       return this.#buildReport({
@@ -81,12 +81,14 @@ export class ScanService {
     const evidenceDeadline = createDeadline(this.evidenceTimeoutMs);
     const evidencePending = settle(
       this.urlscanClient.scan(url, {
+        force,
         signal: evidenceDeadline.controller.signal,
       }),
     );
 
     try {
       const verdict = await this.virusTotalClient.scan(url, {
+        force,
         signal: verdictDeadline.controller.signal,
       });
       verdictDeadline.stop();

@@ -19,12 +19,12 @@ export class ScanJobService {
     this.activeByUrl = new Map();
   }
 
-  create(input) {
+  create(input, { force = false } = {}) {
     this.#cleanup();
     const url = this.scanService.normalize(input);
     const activeId = this.activeByUrl.get(url);
 
-    if (activeId) {
+    if (!force && activeId) {
       const active = this.jobs.get(activeId);
       if (active) {
         return { job: this.#snapshot(active), created: false };
@@ -32,7 +32,7 @@ export class ScanJobService {
       this.activeByUrl.delete(url);
     }
 
-    const cached = this.scanService.getCached(url);
+    const cached = force ? undefined : this.scanService.getCached(url);
     if (cached !== undefined) {
       const job = this.#newJob(url, {
         status: 'complete',
@@ -46,6 +46,7 @@ export class ScanJobService {
     const job = this.#newJob(url, {
       status: 'scanning',
       cacheHit: false,
+      force,
     });
     this.jobs.set(job.id, job);
     this.activeByUrl.set(url, job.id);
@@ -63,6 +64,7 @@ export class ScanJobService {
   async #run(job) {
     try {
       const report = await this.scanService.scan(job.url, {
+        force: job.force,
         onProgress: (partialReport) => {
           if (terminalStatuses.has(job.status)) {
             return;
@@ -88,7 +90,7 @@ export class ScanJobService {
     }
   }
 
-  #newJob(url, { status, report = null, cacheHit }) {
+  #newJob(url, { status, report = null, cacheHit, force = false }) {
     const timestamp = new Date(this.now()).toISOString();
     return {
       id: this.idFactory(),
@@ -99,6 +101,7 @@ export class ScanJobService {
       report,
       error: null,
       cacheHit,
+      force,
       expiresAt: this.now() + this.ttlMs,
     };
   }
@@ -128,6 +131,7 @@ export class ScanJobService {
       report: job.report,
       error: job.error,
       cacheHit: job.cacheHit,
+      force: job.force,
     });
   }
 }

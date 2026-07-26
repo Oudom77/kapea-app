@@ -20,8 +20,8 @@ export class VirusTotalClient {
     this.now = now;
   }
 
-  async scan(url, { signal } = {}) {
-    const existing = await this.#getExistingReport(url, signal);
+  async scan(url, { signal, force = false } = {}) {
+    const existing = force ? null : await this.#getExistingReport(url, signal);
     if (existing) {
       return existing;
     }

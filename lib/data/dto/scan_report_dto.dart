@@ -2,7 +2,6 @@ import '../../models/scan_report.dart';
 
 class ScanReportDto {
   static ScanReport fromJson(Map<String, dynamic> json) {
-
     assert(json['url'] is String);
     assert(json['tier'] is String);
     assert(json['scannedAt'] is String);
@@ -10,10 +9,7 @@ class ScanReportDto {
     assert(json['reasons'] is List);
     assert(json['enginesFlagged'] is int);
     assert(json['totalEngines'] is int);
-    assert(
-      json['screenshotUrl'] == null ||
-      json['screenshotUrl'] is String,
-    );
+    assert(json['screenshotUrl'] == null || json['screenshotUrl'] is String);
 
     final String url = json['url'] as String;
 
@@ -27,17 +23,16 @@ class ScanReportDto {
       json['redirectChain'] as List,
     );
 
-    final List<String> reasons = List<String>.from(
-      json['reasons'] as List,
-    );
+    final List<String> reasons = List<String>.from(json['reasons'] as List);
 
     final int enginesFlagged = json['enginesFlagged'] as int;
     final int totalEngines = json['totalEngines'] as int;
     final String? screenshotUrl = json['screenshotUrl'] as String?;
 
     final String? evidenceStatus = json["evidenceStatus"] as String?;
-    final List<String> warning = json["warning"] is List<String> ? List<String>.from(json["warning"] as List) : [];
-
+    final List<String> warning = json["warning"] is List<String>
+        ? List<String>.from(json["warning"] as List)
+        : [];
 
     return ScanReport(
       url: url,
@@ -51,5 +46,18 @@ class ScanReportDto {
       evidenceStatus: evidenceStatus,
       warnings: warning,
     );
+  }
+
+  static Map<String, dynamic> toJson(ScanReport report) {
+    return {
+      'url': report.url,
+      'tier': report.tier.name,
+      'scannedAt': report.scannedAt.toIso8601String(),
+      'redirectChain': report.redirectChain,
+      'reasons': report.reasons,
+      'enginesFlagged': report.enginesFlagged,
+      'totalEngines': report.totalEngines,
+      'screenshotUrl': report.screenshotUrl,
+    };
   }
 }

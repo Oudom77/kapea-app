@@ -1,25 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/scan_report.dart';
-
-const _kMaliciousColor = Color(0xFFA3313A);
-const _kSuspiciousColor = Color(0xFFD98A2B);
-const _kSafeColor = Color(0xFF1E7D46);
-const _kTeal = Color(0xFF0B6E63);
-const _kDeleteRed = Color(0xFFE0483E);
-const _kScreenshotBg = Color(0xFF3A3A3A);
-
-extension RiskTierX on RiskTier {
-  String get label {
-    switch (this) {
-      case RiskTier.malicious:
-        return 'Malicious';
-      case RiskTier.suspicious:
-        return 'Suspicious';
-      case RiskTier.safe:
-        return 'No threats found';
-    }
-  }
-}
+import '../themes/kapea_theme.dart';
+import '../../services/url_launcher_service.dart';
 
 class ScanReportView extends StatefulWidget {
   final ScanReport report;
@@ -32,27 +14,6 @@ class ScanReportView extends StatefulWidget {
 
 class _ScanReportViewState extends State<ScanReportView> {
   bool _showTechnicalDetails = false;
-
-  Color get _tierColor {
-    switch (widget.report.tier) {
-      case RiskTier.malicious:
-        return _kMaliciousColor;
-      case RiskTier.suspicious:
-        return _kSuspiciousColor;
-      case RiskTier.safe:
-        return _kSafeColor;
-    }
-  }
-
-  IconData get _tierIcon {
-    switch (widget.report.tier) {
-      case RiskTier.malicious:
-      case RiskTier.suspicious:
-        return Icons.error;
-      case RiskTier.safe:
-        return Icons.check_circle;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +30,7 @@ class _ScanReportViewState extends State<ScanReportView> {
             children: [
               if (widget.isLive) ...[
                 _buildLiveBanner(),
-                const SizedBox(height: 16,),
+                const SizedBox(height: 16),
               ],
               _buildStatusBanner(report),
               const SizedBox(height: 16),
@@ -84,11 +45,11 @@ class _ScanReportViewState extends State<ScanReportView> {
               ],
               if (report.tier == RiskTier.suspicious) ...[
                 const SizedBox(height: 16),
-                _buildOpenAnywayButton(),
+                _buildOpenAnywayButton(report),
               ],
               if (report.tier == RiskTier.safe) ...[
                 const SizedBox(height: 16),
-                _buildOpenLinkButton(),
+                _buildOpenLinkButton(report),
               ],
               const SizedBox(height: 12),
               _buildTechnicalDetailsToggle(report),
@@ -103,47 +64,82 @@ class _ScanReportViewState extends State<ScanReportView> {
     );
   }
 
-  Widget _buildLiveBanner() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF0F7F5),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: _kTeal.withValues(alpha: 0.24)),
-    ),
-    child: const Row(
-      children: [
-        SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: _kTeal,
+  Future<void> _confirmOpenLink(BuildContext context, ScanReport report) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            report.tier == RiskTier.safe ? 'Open Website' : 'Security Warning',
           ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Scan still running. Showing early verdict while screenshot and redirects are checked.',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
+          content: Text(
+            report.tier == RiskTier.safe
+                ? 'Do you want to open this website?\n\n${report.url}'
+                : 'This website has been flagged as ${report.tier.label.toLowerCase()}.\n\nOpening it may expose you to phishing, malware, or other security risks.\n\nDo you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                report.tier == RiskTier.safe ? 'Open' : 'Yes, Continue',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await UrlLauncherService.open(report.url);
+    }
+  }
+
+  Future<void> _openLink(BuildContext context, ScanReport report) async {
+      await UrlLauncherService.open(report.url);
+  }
+
+  Widget _buildLiveBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F7F5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kTeal.withValues(alpha: 0.24)),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: kTeal),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Scan still running. Showing early verdict while screenshot and redirects are checked.',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildStatusBanner(ScanReport report) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _tierColor,
+        color: report.tier.color,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -151,7 +147,7 @@ class _ScanReportViewState extends State<ScanReportView> {
         children: [
           Row(
             children: [
-              Icon(_tierIcon, color: Colors.white, size: 22),
+              Icon(report.tier.icon, color: Colors.white, size: 22),
               const SizedBox(width: 8),
               Text(
                 report.tier.label,
@@ -190,7 +186,6 @@ class _ScanReportViewState extends State<ScanReportView> {
   }
 
   Widget _buildScreenshotPreview(ScanReport report) {
-
     final hasScreenshot = report.screenshotUrl != null;
 
     return GestureDetector(
@@ -202,7 +197,7 @@ class _ScanReportViewState extends State<ScanReportView> {
         child: Container(
           width: double.infinity,
           height: 160,
-          color: _kScreenshotBg,
+          color: kScreenshotBg,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -405,28 +400,26 @@ class _ScanReportViewState extends State<ScanReportView> {
   Widget _tierRowIcon(RiskTier tier) {
     switch (tier) {
       case RiskTier.malicious:
-        return const Icon(Icons.cancel, color: _kMaliciousColor, size: 18);
+        return const Icon(Icons.cancel, color: kMaliciousColor, size: 18);
       case RiskTier.suspicious:
         return const Icon(
           Icons.warning_rounded,
-          color: _kSuspiciousColor,
+          color: kSuspiciousColor,
           size: 18,
         );
       case RiskTier.safe:
-        return const Icon(Icons.check_circle, color: _kSafeColor, size: 18);
+        return const Icon(Icons.check_circle, color: kSafeColor, size: 18);
     }
   }
 
-  Widget _buildOpenAnywayButton() {
+  Widget _buildOpenAnywayButton(ScanReport report) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
-        onPressed: () {
-          // TODO: hook up "open anyway" flow
-        },
+        onPressed: () => _confirmOpenLink(context, report),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _kSuspiciousColor,
-          side: const BorderSide(color: _kSuspiciousColor),
+          foregroundColor: kSuspiciousColor,
+          side: const BorderSide(color: kSuspiciousColor),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -440,15 +433,13 @@ class _ScanReportViewState extends State<ScanReportView> {
     );
   }
 
-  Widget _buildOpenLinkButton() {
+  Widget _buildOpenLinkButton(ScanReport report) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          // TODO: hook up "open link" flow
-        },
+        onPressed: () => _openLink(context, report),
         style: ElevatedButton.styleFrom(
-          backgroundColor: _kTeal,
+          backgroundColor: kTeal,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
@@ -513,7 +504,7 @@ class _ScanReportViewState extends State<ScanReportView> {
               icon: const Icon(Icons.ios_share, size: 16, color: Colors.white),
               label: const Text('Share warning'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _kTeal,
+                backgroundColor: kTeal,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -531,8 +522,8 @@ class _ScanReportViewState extends State<ScanReportView> {
               // TODO: hook up "rescan" flow
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: _kTeal,
-              side: const BorderSide(color: _kTeal),
+              foregroundColor: kTeal,
+              side: const BorderSide(color: kTeal),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -545,13 +536,13 @@ class _ScanReportViewState extends State<ScanReportView> {
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: _kDeleteRed),
+            border: Border.all(color: kDeleteRed),
           ),
           child: IconButton(
             onPressed: () {
               // TODO: hook up "delete" flow
             },
-            icon: const Icon(Icons.delete_outline, color: _kDeleteRed),
+            icon: const Icon(Icons.delete_outline, color: kDeleteRed),
           ),
         ),
       ],

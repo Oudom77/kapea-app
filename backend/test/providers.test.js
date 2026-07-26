@@ -106,6 +106,44 @@ test('VirusTotal submits and polls when an existing report is stale', async () =
   assert.equal(result.stats.malicious, 1);
 });
 
+test('VirusTotal force skips existing URL report lookup', async () => {
+  const calls = [];
+  const responses = [
+    jsonResponse({ data: { id: 'analysis-id' } }),
+    jsonResponse({
+      data: {
+        attributes: {
+          status: 'completed',
+          stats: {
+            harmless: 70,
+            malicious: 1,
+            suspicious: 0,
+            undetected: 1,
+          },
+        },
+      },
+    }),
+  ];
+  const client = new VirusTotalClient({
+    apiKey: 'test-key',
+    providerTimeoutMs: 1000,
+    pollIntervalMs: 1,
+    reportMaxAgeMs: 86400000,
+    now: () => now,
+    async fetchImpl(url, options) {
+      calls.push({ url: url.toString(), options });
+      return responses.shift();
+    },
+  });
+
+  const result = await client.scan('https://example.com/', { force: true });
+
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].url, /\/api\/v3\/urls$/);
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(result.source, 'fresh');
+});
+
 test('urlscan reuses a recent matching result', async () => {
   const uuid = '0e37e828-a9d9-45c0-ac50-1ca579b86c72';
   const responses = [
@@ -151,6 +189,43 @@ test('urlscan reuses a recent matching result', async () => {
     result.screenshotUrl,
     `https://urlscan.io/screenshots/${uuid}.png`,
   );
+});
+
+test('urlscan force skips existing result lookup', async () => {
+  const uuid = '0e37e828-a9d9-45c0-ac50-1ca579b86c72';
+  const responses = [
+    jsonResponse({ uuid }),
+    jsonResponse({}, 404),
+    jsonResponse({
+      task: {
+        screenshotURL: `https://urlscan.io/screenshots/${uuid}.png`,
+      },
+      page: {
+        url: 'https://destination.example/account',
+      },
+      data: { requests: [] },
+    }),
+  ];
+  const calls = [];
+  const client = new UrlscanClient({
+    apiKey: 'test-key',
+    visibility: 'unlisted',
+    providerTimeoutMs: 1000,
+    pollIntervalMs: 1,
+    reportMaxAgeMs: 86400000,
+    now: () => now,
+    async fetchImpl(url, options) {
+      calls.push({ url: url.toString(), options });
+      return responses.shift();
+    },
+  });
+
+  const result = await client.scan('https://example.com/', { force: true });
+
+  assert.equal(calls.length, 3);
+  assert.match(calls[0].url, /\/api\/v1\/scan\//);
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(result.source, 'fresh');
 });
 
 test('urlscan submits, polls, and extracts evidence when no result exists', async () => {

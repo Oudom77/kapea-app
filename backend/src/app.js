@@ -38,7 +38,9 @@ export function createRequestHandler({
         assertMethod(request, 'POST');
         enforceScanRateLimit(request, scanRateLimiter);
         const body = await readJsonBody(request);
-        const result = scanJobService.create(body.url);
+        const result = scanJobService.create(body.url, {
+          force: readForce(body.force),
+        });
         const status = result.job.status === 'complete' ? 200 : 202;
         sendJob(response, status, result.job);
         return;
@@ -164,6 +166,22 @@ function payloadTooLarge() {
     status: 413,
     code: 'PAYLOAD_TOO_LARGE',
     message: 'Request body is too large.',
+  });
+}
+
+function readForce(value) {
+  if (value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  throw new AppError({
+    status: 400,
+    code: 'INVALID_FORCE',
+    message: 'force must be a boolean when provided.',
   });
 }
 

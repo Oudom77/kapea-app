@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/services/backend_scan_service.dart';
+import '../../services/flagged_scan_storage_service.dart';
 import './home_screen.dart';
 
 class KapeaApp extends StatelessWidget {
@@ -57,7 +58,7 @@ class KapeaApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(scanService: BackendScanService(baseUrl: 'http://127.0.0.1:8080'),),
+      home: const HomeScreen(scanService: BackendScanService(baseUrl: 'http://127.0.0.1:8080'),storage: FlaggedScanStorage(),),
     );
   }
 }
