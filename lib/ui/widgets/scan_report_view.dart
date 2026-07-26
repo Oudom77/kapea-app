@@ -6,7 +6,9 @@ import '../../services/url_launcher_service.dart';
 class ScanReportView extends StatefulWidget {
   final ScanReport report;
   final bool isLive;
-  const ScanReportView({super.key, required this.report, this.isLive = false});
+  final VoidCallback? onRescan;
+  final VoidCallback? onDelete;
+  const ScanReportView({super.key, required this.report, this.isLive = false, this.onRescan, this.onDelete});
 
   @override
   State<ScanReportView> createState() => _ScanReportViewState();
@@ -518,9 +520,7 @@ class _ScanReportViewState extends State<ScanReportView> {
         ],
         Expanded(
           child: OutlinedButton(
-            onPressed: () {
-              // TODO: hook up "rescan" flow
-            },
+            onPressed: widget.onRescan,
             style: OutlinedButton.styleFrom(
               foregroundColor: kTeal,
               side: const BorderSide(color: kTeal),
@@ -539,9 +539,7 @@ class _ScanReportViewState extends State<ScanReportView> {
             border: Border.all(color: kDeleteRed),
           ),
           child: IconButton(
-            onPressed: () {
-              // TODO: hook up "delete" flow
-            },
+            onPressed: widget.onDelete,
             icon: const Icon(Icons.delete_outline, color: kDeleteRed),
           ),
         ),
