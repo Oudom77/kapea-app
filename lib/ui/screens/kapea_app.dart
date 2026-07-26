@@ -14,7 +14,7 @@ class KapeaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: apptheme,
       home: const HomeScreen(
-        scanService: BackendScanService(baseUrl: 'http://127.0.0.1:8080'),
+        scanService: BackendScanService(), //baseUrl: 'http://127.0.0.1:8080' Add this to test local.Delete if test hosting backend
         storage: FlaggedScanStorage(),
       ),
     );
