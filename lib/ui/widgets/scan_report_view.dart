@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/scan_report.dart';
 import '../themes/kapea_theme.dart';
 import '../../services/url_launcher_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ScanReportView extends StatefulWidget {
   final ScanReport report;
@@ -15,7 +16,31 @@ class ScanReportView extends StatefulWidget {
 }
 
 class _ScanReportViewState extends State<ScanReportView> {
+
+  
+
   bool _showTechnicalDetails = false;
+
+  Future<void> _shareWarning(ScanReport report) async {
+    final String message = 
+    
+'''
+Kapea Warning
+
+This link was marked as ${report.tier.label}:
+
+${report.url}
+
+Reason:
+${report.reasons.isNotEmpty ? report.reasons.join('\n') : 'Security engines reported a risk.'}
+
+Do not open this link unless you trust the source.
+''';
+
+    await SharePlus.instance.share(
+      ShareParams(text: message),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -501,7 +526,7 @@ class _ScanReportViewState extends State<ScanReportView> {
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () {
-                // TODO: hook up "share warning" flow
+                _shareWarning(report);
               },
               icon: const Icon(Icons.ios_share, size: 16, color: Colors.white),
               label: const Text('Share warning'),

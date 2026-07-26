@@ -54,7 +54,7 @@ class BackendScanService implements ScanService {
 
     throw StateError("The scan stream closed without a final result.");
   }
-
+  @override
   Stream<ScanJob> watchScan(String url, {bool force = false}) async* {
 
     ScanJob job = await _createScanJob(url, force: force); // create job if cached result available use that
